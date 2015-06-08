@@ -23,24 +23,24 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
 
-app.get('/', 
+app.get('/',
 function(req, res) {
   res.render('index');
 });
 
-app.get('/create', 
+app.get('/create',
 function(req, res) {
   res.render('index');
 });
 
-app.get('/links', 
+app.get('/links',
 function(req, res) {
   Links.reset().fetch().then(function(links) {
     res.send(200, links.models);
   });
 });
 
-app.post('/links', 
+app.post('/links',
 function(req, res) {
   var uri = req.body.url;
 
@@ -72,6 +72,61 @@ function(req, res) {
       });
     }
   });
+});
+
+app.get('/signup', function(req, res) {
+  res.render('signup');
+});
+
+app.post('/signup', function(req, res) {
+  var username = req.body.username;
+  var password = req.body.password;
+
+  new User({ username: username })
+    .fetch().then(function(found) {
+    if (found) {
+      console.log('error, user already exists.');
+      res.render('login');
+    } else {
+      var user = new User({
+        username: username,
+        password: password
+      });
+
+      user.save().then(function(newUser) {
+        Users.add(newUser);
+        res.redirect('/login');
+      });
+    }
+  });
+});
+
+app.get('/login', function(req, res) {
+  res.render('login');
+});
+
+app.post('/login', function(req, res) {
+  // console.log(req.body);
+  var username = req.body.username;
+  var password = req.body.password;
+
+  // crazy password stuff
+
+  new User({ username: username, password: password })
+    .fetch().then(function(found) {
+    if (found) {
+      console.log('you have been granted access to the greatest thing. ever.');
+      res.redirect('/index');
+    } else {
+      res.redirect('/login');
+    }
+  });
+
+  // make a new user model
+  //  check if the new user model username matches a user currently in the db
+  //    check if password matches
+  //      if yes, let the user go to the index page
+  //      if no, reload login page
 });
 
 /************************************************************/
