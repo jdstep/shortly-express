@@ -2,6 +2,7 @@ var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
+var cookieParser = require('cookie-parser');
 
 
 var db = require('./app/config');
@@ -16,12 +17,14 @@ var app = express();
 app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
 app.use(partials());
+app.use(cookieParser());
 // Parse JSON (uniform resource locators)
 app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
+app.use(util.checkUser);
 
 app.get('/',
 function(req, res) {
@@ -116,6 +119,7 @@ app.post('/login', function(req, res) {
     .fetch().then(function(found) {
     if (found) {
       console.log('you have been granted access to the greatest thing. ever.');
+      res.cookie('loggedin', 'true', {maxAge: 900000});
       res.redirect('/index');
     } else {
       res.redirect('/login');
@@ -127,6 +131,11 @@ app.post('/login', function(req, res) {
   //    check if password matches
   //      if yes, let the user go to the index page
   //      if no, reload login page
+});
+
+app.get('/logout', function(req, res) {
+  res.clearCookie('loggedin');
+  res.redirect('/index');
 });
 
 /************************************************************/
