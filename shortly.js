@@ -4,6 +4,7 @@ var partials = require('express-partials');
 var bodyParser = require('body-parser');
 var cookieParser = require('cookie-parser');
 var Promise = require('bluebird');
+var bcrypt = Promise.promisifyAll(require('bcrypt-nodejs'));
 
 
 var db = require('./app/config');
@@ -84,39 +85,41 @@ app.get('/signup', function(req, res) {
 
 app.post('/signup', function(req, res) {
   var username = req.body.username;
-  var password = req.body.password;
+  var passwordPlain = req.body.password;
+  var salt;
+  var passwordHash;
 
-  new User({ username: username })
-    .fetch().then(function(found) {
+  bcrypt.genSaltAsync(null).then(function(result) {
+    salt = result;
+    console.log('brand new salt is:', salt);
+    return bcrypt.hashAsync(passwordPlain, salt, null);
+  }).then(function(hashResult) {
+    passwordHash = hashResult;
+    console.log('brand new hash is:', passwordHash);
+    return passwordHash;
+  }).then(function() {
+    console.log('checking if user exists already');
+    return new User({ username: username }).fetch();
+  }).then(function(found) {
+    console.log('user is ', found);
     if (found) {
       console.log('error, user already exists.');
       res.render('login');
     } else {
-      // var user = new User({
-      //   username: username,
-      //   password: password
-      // });
-
       var user = new User( {
         username: username,
-        password: password
+        password: passwordHash,
+        salt: salt
       });
-
-      var makePassword = Promise.promisify(user.makePassword, user);
-      console.log("USER IS " + user);
-
-      // Users.add(new User({username: username, password: password}))
-      console.log("This should be after setting the password");
-      makePassword().then(function() {
-        user.save().then(function(newUser) {
-          Users.add(newUser);
-          console.log(newUser);
-          console.log(Users.models);
-          res.redirect('/login');
-        });
-      });
-
+      return user;
     }
+  }).then(function(user) {
+    console.log('saving the user:', user);
+    return user.save();
+  }).then(function(newUser) {
+    console.log('adding user:', newUser);
+    Users.add(newUser);
+    res.redirect('/login');
   });
 });
 
@@ -127,21 +130,36 @@ app.get('/login', function(req, res) {
 app.post('/login', function(req, res) {
   // console.log(req.body);
   var username = req.body.username;
-  var password = req.body.password;
-
+  var passwordPlain = req.body.password;
+  var salt;
+  var passwordHash;
+  var passwordHashInTable;
   // crazy password stuff
-  var hashedPassword = util.hashPassword(username, password);
 
-  new User({ username: username, password: hashedPassword })
-    .fetch().then(function(found) {
+  new User({ username: username }).fetch()
+  .then(function(found) {
     if (found) {
-      console.log('you have been granted access to the greatest thing. ever.');
+      salt = found.get('salt');
+      passwordHashInTable = found.get('password');
+      console.log('salt:', salt, 'passwordHashInTable:', passwordHashInTable);
+      return bcrypt.hashAsync(passwordPlain, salt, null);
+    } else {
+      res.redirect('/login');
+    }
+  })
+  .then(function(hashResult) {
+    passwordHash = hashResult;
+    if (passwordHash === passwordHashInTable) {
       res.cookie('loggedin', 'true', {maxAge: 900000});
       res.redirect('/index');
     } else {
       res.redirect('/login');
     }
   });
+
+
+
+  // });
 
   // make a new user model
   //  check if the new user model username matches a user currently in the db
