@@ -7,7 +7,12 @@ var User = db.Model.extend({
   hasTimestamps: false,
 
   initialize: function() {
-    this.on('creating');
+    this.on('creating', this.makePassword.bind(this);
+  },
+
+  makePassword: function (){
+    Promise.promisify(bcrypt.genSalt);
+    bcrypt.genSalt
   }
 });
 
