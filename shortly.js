@@ -3,6 +3,7 @@ var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
 var cookieParser = require('cookie-parser');
+var Promise = require('bluebird');
 
 
 var db = require('./app/config');
@@ -91,15 +92,30 @@ app.post('/signup', function(req, res) {
       console.log('error, user already exists.');
       res.render('login');
     } else {
-      var user = new User({
+      // var user = new User({
+      //   username: username,
+      //   password: password
+      // });
+
+      var user = new User( {
         username: username,
         password: password
       });
 
-      user.save().then(function(newUser) {
-        Users.add(newUser);
-        res.redirect('/login');
+      var makePassword = Promise.promisify(user.makePassword, user);
+      console.log("USER IS " + user);
+
+      // Users.add(new User({username: username, password: password}))
+      console.log("This should be after setting the password");
+      makePassword().then(function() {
+        user.save().then(function(newUser) {
+          Users.add(newUser);
+          console.log(newUser);
+          console.log(Users.models);
+          res.redirect('/login');
+        });
       });
+
     }
   });
 });
@@ -114,8 +130,9 @@ app.post('/login', function(req, res) {
   var password = req.body.password;
 
   // crazy password stuff
+  var hashedPassword = util.hashPassword(username, password);
 
-  new User({ username: username, password: password })
+  new User({ username: username, password: hashedPassword })
     .fetch().then(function(found) {
     if (found) {
       console.log('you have been granted access to the greatest thing. ever.');

@@ -7,12 +7,35 @@ var User = db.Model.extend({
   hasTimestamps: false,
 
   initialize: function() {
-    this.on('creating', this.makePassword.bind(this);
+    // this.on('creating', this.makePassword);
   },
 
-  makePassword: function (){
-    Promise.promisify(bcrypt.genSalt);
-    bcrypt.genSalt
+  makePassword: function() {
+
+    var context = this;
+
+    var genSalt = Promise.promisify(bcrypt.genSalt, bcrypt);
+    var hash = Promise.promisify(bcrypt.hash, bcrypt);
+
+    genSalt(null).then(function(salt) {
+      console.log(salt);
+      context.set('salt', salt);
+      return salt;
+
+
+
+    }).then(function(salt) {
+      var password = context.get('password');
+
+      hash(password, salt, null).then(function(hash) {
+        context.set('password', hash);
+      }).then(function() {
+        console.log(context.get('password'));
+      });
+
+
+    });
+
   }
 });
 
